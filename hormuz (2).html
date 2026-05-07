@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Straits of Hormuz — Naval Defense</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #a8d8ff; user-select: none; }
+  #game { position: relative; width: 100vw; height: 100vh; background: #05070d; cursor: crosshair; }
+  canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: absolute; top: 0; left: 0; right: 0; padding: 12px 20px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; z-index: 10; }
+  .hud-panel { background: rgba(5, 15, 25, 0.82); border: 1px solid #1a5f8a; border-radius: 4px; padding: 8px 14px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 0 20px rgba(26, 95, 138, 0.3) inset; }
+  .hud-panel .label { color: #5a8fb8; font-size: 10px; }
+  .hud-panel .value { color: #7fdbff; font-size: 18px; font-weight: bold; text-shadow: 0 0 8px #7fdbff; }
+  .stat-row { display: flex; gap: 18px; align-items: center; }
+  .stat { display: flex; flex-direction: column; }
+  .bar { width: 120px; height: 8px; background: #0a2030; border: 1px solid #1a5f8a; margin-top: 4px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, #00ff88, #00ffaa); transition: width 0.3s; box-shadow: 0 0 8px #00ff88; }
+  .bar-fill.danger { background: linear-gradient(90deg, #ff3355, #ff6677); box-shadow: 0 0 8px #ff3355; }
+  .bar-fill.warn { background: linear-gradient(90deg, #ffaa00, #ffcc00); box-shadow: 0 0 8px #ffaa00; }
+  #tomahawk-panel { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10; }
+  .weapon-btn { background: rgba(5, 15, 25, 0.9); border: 1px solid #1a5f8a; color: #7fdbff; padding: 10px 18px; font-family: inherit; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-radius: 4px; transition: all 0.15s; pointer-events: auto; }
+  .weapon-btn:hover:not(:disabled) { background: rgba(26, 95, 138, 0.4); border-color: #7fdbff; box-shadow: 0 0 15px rgba(127, 219, 255, 0.5); }
+  .weapon-btn.active { background: rgba(255, 100, 100, 0.3); border-color: #ff6666; color: #ffaaaa; box-shadow: 0 0 15px rgba(255, 100, 100, 0.6); }
+  .weapon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .weapon-btn .charges { display: block; font-size: 14px; font-weight: bold; margin-top: 2px; color: #7fdbff; }
+  .weapon-btn.active .charges { color: #ffaaaa; }
+  #message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; font-weight: bold; letter-spacing: 4px; text-shadow: 0 0 20px currentColor; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.5s; text-align: center; }
+  #message.show { opacity: 1; }
+  #overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
+  #overlay h1 { font-size: 52px; letter-spacing: 6px; color: #7fdbff; text-shadow: 0 0 30px #7fdbff; margin-bottom: 8px; }
+  #overlay .subtitle { font-size: 13px; color: #5a8fb8; letter-spacing: 3px; margin-bottom: 30px; }
+  #overlay .briefing { max-width: 620px; font-size: 13px; line-height: 1.9; color: #a8d8ff; margin-bottom: 30px; letter-spacing: 1px; }
+  #overlay .briefing strong { color: #ffcc00; }
+  #overlay .controls-grid { display: grid; grid-template-columns: auto auto; gap: 8px 24px; margin-bottom: 30px; font-size: 12px; color: #a8d8ff; }
+  #overlay .controls-grid .k { color: #ffcc00; text-align: right; letter-spacing: 1px; }
+  #overlay button { background: transparent; border: 2px solid #7fdbff; color: #7fdbff; padding: 14px 40px; font-family: inherit; font-size: 14px; letter-spacing: 4px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+  #overlay button:hover { background: #7fdbff; color: #000; box-shadow: 0 0 30px #7fdbff; }
+  #overlay .disclaimer { position: absolute; bottom: 15px; font-size: 10px; color: #3a5a7a; letter-spacing: 2px; max-width: 500px; text-align: center; }
+  .scanline { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(127, 219, 255, 0.025) 3px, rgba(127, 219, 255, 0.025) 4px); pointer-events: none; z-index: 5; }
+  #wave-banner { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-size: 22px; letter-spacing: 8px; color: #ffcc00; text-shadow: 0 0 15px #ffcc00; opacity: 0; transition: opacity 0.4s; z-index: 15; pointer-events: none; }
+  #wave-banner.show { opacity: 1; }
+  .instructions { position: absolute; bottom: 80px; left: 20px; font-size: 10px; color: #5a8fb8; letter-spacing: 1px; z-index: 10; pointer-events: none; line-height: 1.8; }
+  .instructions span { color: #ffcc00; }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="sea"></canvas>
+  <canvas id="fx"></canvas>
+  <div class="scanline"></div>
+
+  <div id="hud">
+    <div class="hud-panel">
+      <div class="stat-row">
+        <div class="stat"><span class="label">Carrier HP</span><div class="bar"><div class="bar-fill" id="carrier-hp" style="width:100%"></div></div></div>
+        <div class="stat"><span class="label">Tankers Lost</span><span class="value" id="tankers-lost">0/3</span></div>
+      </div>
+    </div>
+    <div class="hud-panel" style="text-align:center">
+      <div class="label">Wave</div>
+      <div class="value" id="wave-num">1</div>
+    </div>
+    <div class="hud-panel">
+      <div class="stat-row">
+        <div class="stat"><span class="label">Score</span><span class="value" id="score">0</span></div>
+        <div class="stat"><span class="label">Launch Sites</span><span class="value" id="sites-left">6</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="wave-banner"></div>
+  <div id="message"></div>
+
+  <div id="tomahawk-panel">
+    <button class="weapon-btn" id="btn-intercept" data-mode="intercept">
+      <span>Interceptor</span><span class="charges" id="int-charges">∞</span>
+    </button>
+    <button class="weapon-btn" id="btn-tomahawk" data-mode="tomahawk">
+      <span>Tomahawk Strike</span><span class="charges" id="tom-charges">3</span>
+    </button>
+    <button class="weapon-btn" id="btn-move" data-mode="move">
+      <span>Reposition Fleet</span><span class="charges">Drag</span>
+    </button>
+  </div>
+
+  <div class="instructions">
+    <div><span>CLICK</span> incoming missiles to intercept</div>
+    <div><span>TOMAHAWK</span> → click red launch sites on coast</div>
+    <div><span>DRAG</span> your ships with Reposition Fleet</div>
+  </div>
+
+  <div id="overlay">
+    <h1>STRAITS OF HORMUZ</h1>
+    <div class="subtitle">◆ NAVAL TACTICAL DEFENSE — FICTIONAL SCENARIO ◆</div>
+    <div class="briefing">
+      You command the <strong>USS Nimitz carrier strike group</strong> in the Gulf. Protect
+      commercial <strong>oil tankers</strong> transiting the strait while neutralizing coastal
+      threats. Intercept incoming anti-ship missiles, strike launch sites with Tomahawks,
+      and reposition your fleet for best firing solutions. Your destroyers auto-engage
+      surface threats. <strong>Lose</strong> if your carrier sinks or 3 tankers are hit.
+      <strong>Win</strong> by destroying all 6 coastal launch sites.
+    </div>
+    <div class="controls-grid">
+      <div class="k">CLICK</div><div>Intercept incoming missile / select target</div>
+      <div class="k">1 / 2 / 3</div><div>Switch weapon mode (Interceptor / Tomahawk / Move)</div>
+      <div class="k">DRAG</div><div>Move fleet ships (in Reposition mode)</div>
+      <div class="k">SPACE</div><div>Pause / resume</div>
+    </div>
+    <button id="start-btn">▶ BEGIN OPERATION</button>
+    <div class="disclaimer">This is a fictional arcade game. Not a depiction of real conflict, military operations, or current geopolitical events.</div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// STRAITS OF HORMUZ — Arcade Naval Defense
+// ============================================================================
+
+const seaCanvas = document.getElementById('sea');
+const fxCanvas = document.getElementById('fx');
+const seaCtx = seaCanvas.getContext('2d');
+const fxCtx = fxCanvas.getContext('2d');
+
+let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  for (const c of [seaCanvas, fxCanvas]) {
+    c.width = W * DPR; c.height = H * DPR;
+    c.style.width = W + 'px'; c.style.height = H + 'px';
+  }
+  seaCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  fxCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------- AUDIO (Web Audio API — no external files) ----------
+let audioCtx;
+function ac() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+function tone(freq, dur, type='sine', vol=0.15, freqEnd) {
+  try {
+    const c = ac(); const o = c.createOscillator(); const g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, c.currentTime);
+    if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, c.currentTime + dur);
+    g.gain.setValueAtTime(vol, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(); o.stop(c.currentTime + dur);
+  } catch(e) {}
+}
+function noiseBurst(dur=0.3, vol=0.2, filter=800) {
+  try {
+    const c = ac();
+    const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = filter;
+    const g = c.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start();
+  } catch(e) {}
+}
+const sfx = {
+  launch: () => tone(220, 0.3, 'sawtooth', 0.12, 80),
+  intercept: () => { tone(800, 0.08, 'square', 0.1); tone(1200, 0.06, 'sine', 0.08); },
+  explosion: () => { noiseBurst(0.4, 0.22, 600); tone(60, 0.3, 'sine', 0.15, 30); },
+  bigBoom: () => { noiseBurst(0.8, 0.3, 400); tone(40, 0.6, 'sine', 0.2, 20); },
+  tomahawk: () => { tone(150, 0.5, 'sawtooth', 0.15, 400); },
+  hit: () => tone(180, 0.2, 'square', 0.12, 90),
+  alert: () => { tone(880, 0.1, 'sine', 0.1); setTimeout(() => tone(880, 0.1, 'sine', 0.1), 150); },
+  ping: () => tone(1800, 0.05, 'sine', 0.06),
+  waveComplete: () => { [523, 659, 784, 1047].forEach((f,i) => setTimeout(() => tone(f, 0.15, 'triangle', 0.12), i*80)); },
+  gameOver: () => { [400, 350, 300, 200].forEach((f,i) => setTimeout(() => tone(f, 0.3, 'sawtooth', 0.15), i*200)); },
+  victory: () => { [523, 659, 784, 1047, 1319].forEach((f,i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.15), i*100)); },
+};
+
+// ---------- GEOGRAPHY: Strait of Hormuz (matches real satellite imagery) ----------
+// Screen orientation: Iran = top (north), UAE/Oman = bottom-left, Musandam peninsula
+// juts UP from bottom-center into the middle of the strait. Persian Gulf = upper-left.
+// Gulf of Oman = right side. Strait chokepoint = center-right where Musandam nearly
+// meets Iran's coast.
+const MAP = {
+  // Iran — large landmass covering top ~25-35% of screen. Coast dips down in the middle
+  // (where the strait narrows), with a slight bay shape on the right.
+  iran: [
+    [0, 0], [1, 0], [1, 0.30],         // top-right corner
+    [0.96, 0.32], [0.92, 0.33],
+    [0.86, 0.30], [0.80, 0.28],        // slight bay on Iran's southeast coast
+    [0.74, 0.25], [0.68, 0.22],        // coast descends toward strait
+    [0.62, 0.20], [0.58, 0.22],
+    [0.54, 0.26], [0.50, 0.28],        // narrowest point — Iranian coast at Qeshm/Hormuz islands
+    [0.46, 0.27], [0.42, 0.25],
+    [0.38, 0.22], [0.33, 0.20],        // Bandar Abbas region
+    [0.27, 0.19], [0.22, 0.21],
+    [0.17, 0.24], [0.12, 0.28],        // coast rises again going west into Persian Gulf
+    [0.07, 0.32], [0.03, 0.35],
+    [0, 0.36]                           // left edge
+  ],
+
+  // Iran's islands in the strait (Qeshm/Hormuz/Larak)
+  islands: [
+    { x: 0.40, y: 0.32, w: 0.08, h: 0.025 },  // Qeshm (largest, elongated)
+    { x: 0.50, y: 0.35, w: 0.025, h: 0.018 }, // Hormuz
+    { x: 0.55, y: 0.37, w: 0.022, h: 0.015 }, // Larak
+  ],
+
+  // Persian Gulf water area (upper-left) is implicit — just the space not covered by land.
+
+  // UAE coast — lower-left portion, relatively straight going up to Musandam
+  uae: [
+    [0, 1], [0, 0.62],                 // left edge
+    [0.05, 0.65], [0.10, 0.68],
+    [0.16, 0.71], [0.22, 0.74],
+    [0.28, 0.77], [0.34, 0.80],        // UAE coastline (Dubai/Sharjah area)
+    [0.38, 0.83], [0.42, 0.84],
+    [0.44, 0.82], [0.46, 0.78],        // turns toward base of Musandam peninsula
+    [0.48, 0.73],
+    // ===== MUSANDAM PENINSULA (Oman exclave) =====
+    // The dramatic arrow-shaped peninsula jutting UP into the strait.
+    // West side of peninsula
+    [0.50, 0.68], [0.52, 0.62], [0.53, 0.56], [0.54, 0.50],
+    [0.555, 0.45], [0.565, 0.40],
+    // Peninsula TIP (closest point to Iran — the chokepoint)
+    [0.57, 0.37], [0.585, 0.35], [0.595, 0.36],
+    // East side of peninsula descending
+    [0.605, 0.40], [0.615, 0.45], [0.625, 0.50],
+    [0.635, 0.56], [0.645, 0.62], [0.655, 0.68],
+    [0.67, 0.73], [0.69, 0.76],        // base of peninsula east side
+    // ===== OMAN proper (Gulf of Oman coast) =====
+    [0.72, 0.78], [0.76, 0.79],
+    [0.80, 0.80], [0.84, 0.82],
+    [0.88, 0.84], [0.92, 0.86],
+    [0.96, 0.88], [1, 0.90],            // right edge
+    [1, 1]                              // bottom-right corner
+  ],
+
+  // 6 launch sites on Iranian coast (following the real coastline shape)
+  launchSites: [
+    { x: 0.10, y: 0.30, name: 'Bandar Site α' },
+    { x: 0.22, y: 0.23, name: 'Qeshm Site β' },
+    { x: 0.34, y: 0.22, name: 'Bandar Abbas γ' },
+    { x: 0.48, y: 0.28, name: 'Hormuz Site δ' },
+    { x: 0.68, y: 0.24, name: 'Jask Site ε' },
+    { x: 0.86, y: 0.30, name: 'Chabahar Site ζ' },
+  ],
+};
+
+function px(fx) { return fx * W; }
+function py(fy) { return fy * H; }
+
+// ---------- GAME STATE ----------
+const game = {
+  running: false,
+  paused: false,
+  score: 0,
+  wave: 1,
+  maxWaves: 5,
+  tankersLost: 0,
+  maxTankerLoss: 3,
+  tomahawks: 3,
+  mode: 'intercept', // intercept | tomahawk | move
+  dragTarget: null,
+  lastSpawn: 0,
+  lastTanker: 0,
+  waveStartTime: 0,
+  waveSpawnCount: 0,
+  screenShake: 0,
+  flash: 0,
+  radarAngle: 0,
+  time: 0,
+};
+
+// Player fleet — positioned in water avoiding Musandam peninsula
+// Water areas: Persian Gulf (upper-left, y~0.40-0.60), Strait (middle), Gulf of Oman (lower-right)
+const fleet = {
+  carrier: { x: 0.82, y: 0.60, hp: 100, type: 'carrier', w: 60, h: 22, dragging: false },
+  destroyer1: { x: 0.30, y: 0.50, hp: 60, type: 'destroyer', w: 40, h: 14, fireCooldown: 0 },
+  destroyer2: { x: 0.72, y: 0.50, hp: 60, type: 'destroyer', w: 40, h: 14, fireCooldown: 0 },
+  destroyer3: { x: 0.90, y: 0.70, hp: 60, type: 'destroyer', w: 40, h: 14, fireCooldown: 0 },
+};
+
+const missiles = [];      // incoming threats
+const interceptors = [];  // player defensive shots
+const tomahawks = [];     // player cruise missiles
+const destroyerShots = []; // auto-fire from destroyers
+const tankers = [];       // friendly ships transiting
+const enemyBoats = [];    // Iranian fast attack craft
+const particles = [];
+const explosions = [];
+const textFx = [];
+
+// Active launch sites — mutated as they're destroyed
+let launchSites = MAP.launchSites.map(s => ({ ...s, alive: true, pulse: 0 }));
+
+// ---------- SPAWNERS ----------
+function spawnTanker() {
+  // transit west-to-east, tracking the shipping lane curve
+  tankers.push({
+    x: -0.05,
+    y: laneY(-0.05),
+    speed: 0.09 + Math.random() * 0.02,
+    hp: 1, w: 70, h: 16, id: Math.random()
+  });
+}
+
+// Shipping lane as a curve through the strait.
+// Iran coast dips to y~0.20 in middle, Musandam tip reaches up to y~0.35.
+// So lane needs to thread between Iran's southern coast and the peninsula tip.
+// West of peninsula (x < 0.57): lane passes north, close to Iran coast
+// East of peninsula (x > 0.60): lane drops south into Gulf of Oman
+function laneY(x) {
+  if (x < 0.50) {
+    // Persian Gulf side — lane stays in middle of gulf, south of Iran
+    return 0.48 + Math.sin(x * 4) * 0.02;
+  } else if (x < 0.62) {
+    // threading the chokepoint between Iran (y~0.25) and Musandam tip (y~0.37)
+    // lane squeezes through at ~y=0.32
+    return 0.30 + (x - 0.50) * 0.25;
+  } else {
+    // Gulf of Oman side — lane drops south
+    const t = Math.min(1, (x - 0.62) / 0.25);
+    return 0.33 + t * 0.15;
+  }
+}
+
+// Returns y of the nearest south coast / Musandam at a given x — for fleet clamp
+function southCoastY(x) {
+  const pts = MAP.uae;
+  const coastPts = pts.filter(p => p[1] < 0.95 && p[0] > 0 && p[0] < 1);
+  if (!coastPts.length) return 0.85;
+  // find the two points bracketing x
+  let best = 0.85;
+  for (let i = 0; i < coastPts.length - 1; i++) {
+    const a = coastPts[i], b = coastPts[i+1];
+    if ((a[0] <= x && x <= b[0]) || (b[0] <= x && x <= a[0])) {
+      const t = (b[0] - a[0]) === 0 ? 0 : (x - a[0]) / (b[0] - a[0]);
+      const y = a[1] * (1 - t) + b[1] * t;
+      if (y < best) best = y; // take shallowest (smallest y) match
+    }
+  }
+  return best;
+}
+
+// Returns y of Iran's south coast at a given x (for northward fleet clamp)
+function iranCoastY(x) {
+  const pts = MAP.iran;
+  const coastPts = pts.filter(p => p[1] > 0 && p[0] > 0 && p[0] < 1);
+  if (!coastPts.length) return 0.35;
+  let best = 0.10;
+  for (let i = 0; i < coastPts.length - 1; i++) {
+    const a = coastPts[i], b = coastPts[i+1];
+    if ((a[0] <= x && x <= b[0]) || (b[0] <= x && x <= a[0])) {
+      const t = (b[0] - a[0]) === 0 ? 0 : (x - a[0]) / (b[0] - a[0]);
+      const y = a[1] * (1 - t) + b[1] * t;
+      if (y > best) best = y; // take deepest (largest y) match — Iran's southern shore
+    }
+  }
+  return best;
+}
+
+function spawnMissile(fromSite) {
+  const src = fromSite || launchSites.filter(s => s.alive)[Math.floor(Math.random() * launchSites.filter(s => s.alive).length)];
+  if (!src) return;
+  // Pick a target: tanker, carrier, or destroyer
+  const targets = [...tankers, fleet.carrier, fleet.destroyer1, fleet.destroyer2, fleet.destroyer3].filter(t => t && (t.hp === undefined || t.hp > 0));
+  if (!targets.length) return;
+  const tgt = targets[Math.floor(Math.random() * targets.length)];
+  const fx = src.x, fy = src.y;
+  const tx = tgt.x, ty = tgt.y;
+  missiles.push({
+    x: fx, y: fy, tx, ty, sx: fx, sy: fy,
+    t: 0, duration: 4 + Math.random() * 2, // seconds to reach
+    targetRef: tgt, dead: false,
+  });
+  sfx.launch();
+  screenShake(2);
+}
+
+function spawnBoat() {
+  // fast attack craft heading south from coast
+  const sites = launchSites.filter(s => s.alive);
+  if (!sites.length) return;
+  const site = sites[Math.floor(Math.random() * sites.length)];
+  enemyBoats.push({
+    x: site.x, y: site.y + 0.02, tx: site.x + (Math.random() - 0.5) * 0.2, ty: 0.55,
+    speed: 0.04, hp: 2, w: 18, h: 8,
+  });
+}
+
+// ---------- RENDERING: SEA LAYER (static-ish) ----------
+function drawSeaLayer() {
+  seaCtx.clearRect(0, 0, W, H);
+
+  // Ocean — deep teal/navy like real satellite view of the Gulf
+  const g = seaCtx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0d3848');       // shallow-ish Persian Gulf water (upper)
+  g.addColorStop(0.35, '#0a2838');    // deeper water near strait
+  g.addColorStop(0.55, '#082030');    // darkest in the strait
+  g.addColorStop(0.75, '#0a2838');
+  g.addColorStop(1, '#0d3848');
+  seaCtx.fillStyle = g;
+  seaCtx.fillRect(0, 0, W, H);
+
+  // Subtle light-reflection speckles in the water (like sun glint in satellite imagery)
+  seaCtx.fillStyle = 'rgba(180, 200, 210, 0.04)';
+  for (let i = 0; i < 120; i++) {
+    // deterministic pattern using time-independent hash
+    const seed = i * 2.3456;
+    const x = ((Math.sin(seed) + 1) / 2) * W;
+    const y = ((Math.cos(seed * 1.7) + 1) / 2) * H;
+    const size = 1 + ((seed * 7) % 2);
+    seaCtx.fillRect(x, y, size, size);
+  }
+
+  // Animated wave glints
+  seaCtx.strokeStyle = 'rgba(200, 220, 230, 0.06)';
+  seaCtx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const baseY = 0.42 + i * 0.04 + Math.sin(game.time * 0.3 + i * 2) * 0.006;
+    seaCtx.beginPath();
+    for (let x = 0; x <= 1.01; x += 0.03) {
+      const wy = baseY + Math.sin(x * 14 + game.time * 0.8 + i) * 0.003;
+      if (x === 0) seaCtx.moveTo(px(x), py(wy));
+      else seaCtx.lineTo(px(x), py(wy));
+    }
+    seaCtx.stroke();
+  }
+
+  // Landmasses with realistic satellite palette
+  drawLandmass(MAP.iran, {
+    base: '#b8a57d',        // sandy tan
+    highland: '#8a7550',    // mountain ridges (darker brown)
+    coastal: '#d4c498',     // lighter sand near coast
+    shore: '#3a5568',       // turquoise shore water
+    label: 'IRAN',
+    labelX: 0.72, labelY: 0.12,
+  });
+
+  drawLandmass(MAP.uae, {
+    base: '#c9a570',        // UAE has that distinctive warmer orange-tan
+    highland: '#6b5838',    // Musandam mountain ridges are darker
+    coastal: '#e0c08a',
+    shore: '#3a5568',
+    label: 'UAE',
+    labelX: 0.20, labelY: 0.88,
+    label2: 'OMAN', label2X: 0.85, label2Y: 0.95,
+  });
+
+  // Iran's islands (Qeshm, Hormuz, Larak) — small tan blobs in the strait
+  seaCtx.fillStyle = '#b8a57d';
+  seaCtx.strokeStyle = '#8a7550';
+  seaCtx.lineWidth = 0.8;
+  for (const isl of MAP.islands) {
+    const x = px(isl.x), y = py(isl.y);
+    const w = px(isl.w), h = py(isl.h);
+    // shore halo
+    seaCtx.fillStyle = 'rgba(120, 180, 190, 0.35)';
+    seaCtx.beginPath();
+    seaCtx.ellipse(x, y, w/2 + 4, h/2 + 3, 0, 0, Math.PI * 2);
+    seaCtx.fill();
+    // island body
+    seaCtx.fillStyle = '#b8a57d';
+    seaCtx.beginPath();
+    seaCtx.ellipse(x, y, w/2, h/2, 0, 0, Math.PI * 2);
+    seaCtx.fill();
+    seaCtx.stroke();
+  }
+
+  // Shipping lane indicator — curves around Musandam peninsula
+  seaCtx.strokeStyle = 'rgba(200, 220, 255, 0.18)';
+  seaCtx.setLineDash([10, 8]);
+  seaCtx.lineWidth = 1;
+  seaCtx.beginPath();
+  for (let sx = 0; sx <= 1.0; sx += 0.01) {
+    const sy = laneY(sx);
+    if (sx === 0) seaCtx.moveTo(px(sx), py(sy));
+    else seaCtx.lineTo(px(sx), py(sy));
+  }
+  seaCtx.stroke();
+  seaCtx.setLineDash([]);
+
+  seaCtx.fillStyle = 'rgba(200, 220, 255, 0.5)';
+  seaCtx.font = '10px "Courier New", monospace';
+  seaCtx.fillText('◂ INTERNATIONAL SHIPPING LANE ▸', px(0.02), py(laneY(0.02)) - 6);
+
+  // Big ghost label
+  seaCtx.fillStyle = 'rgba(180, 210, 230, 0.08)';
+  seaCtx.font = 'bold 38px "Courier New", monospace';
+  seaCtx.fillText('STRAIT OF HORMUZ', px(0.15), py(0.52));
+
+  // Tactical grid (very subtle, feels like a HUD overlay)
+  seaCtx.strokeStyle = 'rgba(127, 219, 255, 0.035)';
+  seaCtx.lineWidth = 0.5;
+  for (let x = 0; x <= 1; x += 0.1) {
+    seaCtx.beginPath(); seaCtx.moveTo(px(x), 0); seaCtx.lineTo(px(x), H); seaCtx.stroke();
+  }
+  for (let y = 0; y <= 1; y += 0.1) {
+    seaCtx.beginPath(); seaCtx.moveTo(0, py(y)); seaCtx.lineTo(W, py(y)); seaCtx.stroke();
+  }
+
+  // Launch sites on coast
+  for (const s of launchSites) {
+    const x = px(s.x), y = py(s.y);
+    if (s.alive) {
+      s.pulse = (s.pulse + 0.04) % (Math.PI * 2);
+      const pulse = 0.6 + Math.sin(s.pulse) * 0.4;
+      seaCtx.strokeStyle = `rgba(255, 60, 60, ${0.35 * pulse})`;
+      seaCtx.lineWidth = 2;
+      seaCtx.beginPath();
+      seaCtx.arc(x, y, 14 + pulse * 6, 0, Math.PI * 2);
+      seaCtx.stroke();
+      // inner marker
+      seaCtx.fillStyle = '#ff3344';
+      seaCtx.strokeStyle = '#ffaaaa';
+      seaCtx.lineWidth = 1.5;
+      seaCtx.beginPath();
+      seaCtx.moveTo(x, y - 8);
+      seaCtx.lineTo(x + 7, y + 5);
+      seaCtx.lineTo(x - 7, y + 5);
+      seaCtx.closePath();
+      seaCtx.fill();
+      seaCtx.stroke();
+      // crosshair when tomahawk mode
+      if (game.mode === 'tomahawk') {
+        seaCtx.strokeStyle = `rgba(255, 200, 0, ${0.6 + 0.4 * Math.sin(game.time * 4)})`;
+        seaCtx.lineWidth = 1.5;
+        seaCtx.beginPath();
+        seaCtx.arc(x, y, 22, 0, Math.PI * 2);
+        seaCtx.stroke();
+        seaCtx.beginPath();
+        seaCtx.moveTo(x - 28, y); seaCtx.lineTo(x - 18, y);
+        seaCtx.moveTo(x + 18, y); seaCtx.lineTo(x + 28, y);
+        seaCtx.moveTo(x, y - 28); seaCtx.lineTo(x, y - 18);
+        seaCtx.moveTo(x, y + 18); seaCtx.lineTo(x, y + 28);
+        seaCtx.stroke();
+      }
+    } else {
+      seaCtx.strokeStyle = 'rgba(80, 80, 80, 0.5)';
+      seaCtx.lineWidth = 2;
+      seaCtx.beginPath();
+      seaCtx.moveTo(x - 6, y - 6); seaCtx.lineTo(x + 6, y + 6);
+      seaCtx.moveTo(x + 6, y - 6); seaCtx.lineTo(x - 6, y + 6);
+      seaCtx.stroke();
+    }
+  }
+}
+
+// Draw a landmass with realistic satellite-like coloring: base sand, mountain ridges, shore halo
+function drawLandmass(poly, opts) {
+  // Shore halo (lighter coastal water) — draw a thicker version of polygon first
+  seaCtx.fillStyle = 'rgba(90, 160, 170, 0.4)';
+  seaCtx.beginPath();
+  poly.forEach((p, i) => {
+    const x = px(p[0]), y = py(p[1]);
+    if (i === 0) seaCtx.moveTo(x, y); else seaCtx.lineTo(x, y);
+  });
+  seaCtx.closePath();
+  // expand slightly by drawing with thick stroke
+  seaCtx.lineWidth = 6;
+  seaCtx.strokeStyle = 'rgba(120, 190, 200, 0.35)';
+  seaCtx.stroke();
+
+  // Main land fill
+  seaCtx.fillStyle = opts.base;
+  seaCtx.beginPath();
+  poly.forEach((p, i) => {
+    const x = px(p[0]), y = py(p[1]);
+    if (i === 0) seaCtx.moveTo(x, y); else seaCtx.lineTo(x, y);
+  });
+  seaCtx.closePath();
+  seaCtx.fill();
+
+  // Lighter coastal band (apply a gradient near the coastline)
+  seaCtx.save();
+  seaCtx.clip();
+  // add noisy terrain texture — random darker/lighter patches
+  for (let i = 0; i < 400; i++) {
+    const seed = (opts.label.charCodeAt(0) + i) * 3.7;
+    const rx = ((Math.sin(seed) + 1) / 2);
+    const ry = ((Math.cos(seed * 1.3) + 1) / 2);
+    const size = 2 + ((seed * 3) % 6);
+    const shade = (seed * 11) % 3;
+    if (shade < 1) seaCtx.fillStyle = opts.highland;         // dark ridge
+    else if (shade < 2) seaCtx.fillStyle = opts.coastal;      // light patch
+    else seaCtx.fillStyle = opts.base;                        // base
+    seaCtx.globalAlpha = 0.45 + ((seed * 5) % 5) * 0.1;
+    seaCtx.beginPath();
+    seaCtx.arc(rx * W, ry * H, size, 0, Math.PI * 2);
+    seaCtx.fill();
+  }
+  seaCtx.globalAlpha = 1;
+
+  // Mountain ridge bands — use sine curves clipped to land for geological texture
+  seaCtx.strokeStyle = opts.highland;
+  seaCtx.lineWidth = 1.2;
+  seaCtx.globalAlpha = 0.4;
+  for (let i = 0; i < 25; i++) {
+    const baseY = (i / 25) * H;
+    const offset = (i * 17) % 100;
+    seaCtx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      const y = baseY + Math.sin((x + offset) * 0.02) * 8 + Math.sin((x + offset) * 0.008) * 16;
+      if (x === 0) seaCtx.moveTo(x, y); else seaCtx.lineTo(x, y);
+    }
+    seaCtx.stroke();
+  }
+  seaCtx.globalAlpha = 1;
+  seaCtx.restore();
+
+  // Coastline edge (sharp darker line) — only draw the coast-facing edges
+  seaCtx.strokeStyle = opts.highland;
+  seaCtx.lineWidth = 1.5;
+  seaCtx.beginPath();
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    const pn = poly[(i + 1) % poly.length];
+    const isScreenEdge = (p[0] === 0 && pn[0] === 0) || (p[0] === 1 && pn[0] === 1) ||
+                          (p[1] === 0 && pn[1] === 0) || (p[1] === 1 && pn[1] === 1);
+    if (!isScreenEdge) {
+      seaCtx.moveTo(px(p[0]), py(p[1]));
+      seaCtx.lineTo(px(pn[0]), py(pn[1]));
+    }
+  }
+  seaCtx.stroke();
+
+  // Country label
+  seaCtx.fillStyle = 'rgba(50, 40, 25, 0.55)';
+  seaCtx.font = 'bold 18px "Courier New", monospace';
+  seaCtx.fillText(opts.label, px(opts.labelX), py(opts.labelY));
+  if (opts.label2) {
+    seaCtx.fillText(opts.label2, px(opts.label2X), py(opts.label2Y));
+  }
+}
+
+function pointInPoly(p, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > p[1]) !== (yj > p[1])) && (p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+// ---------- RENDERING: FX LAYER (dynamic) ----------
+function drawFX() {
+  fxCtx.clearRect(0, 0, W, H);
+
+  // screen shake
+  if (game.screenShake > 0) {
+    const sx = (Math.random() - 0.5) * game.screenShake;
+    const sy = (Math.random() - 0.5) * game.screenShake;
+    fxCtx.save();
+    fxCtx.translate(sx, sy);
+    game.screenShake *= 0.88;
+    if (game.screenShake < 0.1) game.screenShake = 0;
+  }
+
+  // radar sweep from carrier
+  const cx = px(fleet.carrier.x), cy = py(fleet.carrier.y);
+  game.radarAngle += 0.02;
+  fxCtx.save();
+  fxCtx.translate(cx, cy);
+  fxCtx.rotate(game.radarAngle);
+  const grd = fxCtx.createLinearGradient(0, 0, 400, 0);
+  grd.addColorStop(0, 'rgba(127, 219, 255, 0.12)');
+  grd.addColorStop(1, 'rgba(127, 219, 255, 0)');
+  fxCtx.fillStyle = grd;
+  fxCtx.beginPath();
+  fxCtx.moveTo(0, 0);
+  fxCtx.arc(0, 0, 400, -0.2, 0);
+  fxCtx.closePath();
+  fxCtx.fill();
+  fxCtx.restore();
+
+  // Tankers (friendly, large ships)
+  for (const t of tankers) {
+    drawShip(px(t.x), py(t.y), t.w, t.h, '#2d5f8a', '#7fdbff', '→');
+    // label
+    fxCtx.fillStyle = 'rgba(127, 219, 255, 0.5)';
+    fxCtx.font = '9px "Courier News", monospace';
+    fxCtx.fillText('TANKER', px(t.x) - 20, py(t.y) - 14);
+  }
+
+  // Fleet: carrier + destroyers
+  drawCarrier(fleet.carrier);
+  drawDestroyer(fleet.destroyer1, 'DDG-1');
+  drawDestroyer(fleet.destroyer2, 'DDG-2');
+  drawDestroyer(fleet.destroyer3, 'DDG-3');
+
+  // Enemy boats
+  for (const b of enemyBoats) {
+    drawShip(px(b.x), py(b.y), b.w, b.h, '#8a2d2d', '#ff6666', '▼');
+    fxCtx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+    fxCtx.font = '8px "Courier New", monospace';
+    fxCtx.fillText('FAC', px(b.x) - 8, py(b.y) - 10);
+  }
+
+  // Missile trails and heads
+  for (const m of missiles) {
+    const x = px(m.x), y = py(m.y);
+    const sx = px(m.sx), sy = py(m.sy);
+    // trail
+    const trailG = fxCtx.createLinearGradient(sx, sy, x, y);
+    trailG.addColorStop(0, 'rgba(255, 100, 50, 0)');
+    trailG.addColorStop(0.7, 'rgba(255, 150, 50, 0.4)');
+    trailG.addColorStop(1, 'rgba(255, 220, 100, 0.9)');
+    fxCtx.strokeStyle = trailG;
+    fxCtx.lineWidth = 2.5;
+    fxCtx.beginPath();
+    fxCtx.moveTo(sx, sy);
+    fxCtx.lineTo(x, y);
+    fxCtx.stroke();
+    // missile head glow
+    fxCtx.fillStyle = '#ffeeaa';
+    fxCtx.beginPath(); fxCtx.arc(x, y, 4, 0, Math.PI * 2); fxCtx.fill();
+    fxCtx.fillStyle = '#ff6644';
+    fxCtx.beginPath(); fxCtx.arc(x, y, 2, 0, Math.PI * 2); fxCtx.fill();
+    // hitbox hint (subtle)
+    fxCtx.strokeStyle = 'rgba(255, 255, 100, 0.25)';
+    fxCtx.lineWidth = 1;
+    fxCtx.beginPath(); fxCtx.arc(x, y, 18, 0, Math.PI * 2); fxCtx.stroke();
+  }
+
+  // Interceptors (player shots)
+  for (const i of interceptors) {
+    const x = px(i.x), y = py(i.y);
+    const sx = px(i.sx), sy = py(i.sy);
+    fxCtx.strokeStyle = 'rgba(127, 255, 200, 0.8)';
+    fxCtx.lineWidth = 1.5;
+    fxCtx.beginPath(); fxCtx.moveTo(sx, sy); fxCtx.lineTo(x, y); fxCtx.stroke();
+    fxCtx.fillStyle = '#aaffdd';
+    fxCtx.beginPath(); fxCtx.arc(x, y, 3, 0, Math.PI * 2); fxCtx.fill();
+  }
+
+  // Tomahawks (arcing to land)
+  for (const t of tomahawks) {
+    const x = px(t.x), y = py(t.y);
+    const sx = px(t.sx), sy = py(t.sy);
+    fxCtx.strokeStyle = 'rgba(255, 200, 100, 0.7)';
+    fxCtx.lineWidth = 2;
+    fxCtx.setLineDash([4, 4]);
+    fxCtx.beginPath(); fxCtx.moveTo(sx, sy); fxCtx.lineTo(x, y); fxCtx.stroke();
+    fxCtx.setLineDash([]);
+    fxCtx.fillStyle = '#ffcc66';
+    fxCtx.beginPath(); fxCtx.arc(x, y, 4, 0, Math.PI * 2); fxCtx.fill();
+  }
+
+  // Destroyer auto-shots (small tracer rounds)
+  for (const s of destroyerShots) {
+    const x = px(s.x), y = py(s.y);
+    const sx = px(s.sx), sy = py(s.sy);
+    fxCtx.strokeStyle = 'rgba(255, 255, 150, 0.7)';
+    fxCtx.lineWidth = 1.2;
+    fxCtx.beginPath(); fxCtx.moveTo(sx, sy); fxCtx.lineTo(x, y); fxCtx.stroke();
+  }
+
+  // Particles (smoke, sparks)
+  for (const p of particles) {
+    fxCtx.fillStyle = `rgba(${p.r},${p.g},${p.b},${p.a})`;
+    fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2); fxCtx.fill();
+  }
+
+  // Explosions
+  for (const e of explosions) {
+    const r = e.radius * (1 - e.life / e.maxLife);
+    const alpha = e.life / e.maxLife;
+    const gg = fxCtx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r);
+    gg.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+    gg.addColorStop(0.3, `rgba(255, 150, 60, ${alpha * 0.8})`);
+    gg.addColorStop(0.7, `rgba(255, 60, 40, ${alpha * 0.4})`);
+    gg.addColorStop(1, `rgba(100, 20, 10, 0)`);
+    fxCtx.fillStyle = gg;
+    fxCtx.beginPath(); fxCtx.arc(e.x, e.y, r, 0, Math.PI * 2); fxCtx.fill();
+  }
+
+  // floating score text
+  for (const t of textFx) {
+    fxCtx.fillStyle = `rgba(${t.color}, ${t.alpha})`;
+    fxCtx.font = 'bold 14px "Courier New", monospace';
+    fxCtx.fillText(t.text, t.x, t.y);
+  }
+
+  // Screen flash
+  if (game.flash > 0) {
+    fxCtx.fillStyle = `rgba(255, 60, 60, ${game.flash})`;
+    fxCtx.fillRect(0, 0, W, H);
+    game.flash *= 0.85;
+  }
+
+  if (game.screenShake > 0 || game.screenShake === 0) {
+    // matches the save() above — always restore
+  }
+  fxCtx.restore();
+}
+
+function drawShip(x, y, w, h, fillColor, strokeColor, arrow) {
+  fxCtx.fillStyle = fillColor;
+  fxCtx.strokeStyle = strokeColor;
+  fxCtx.lineWidth = 1;
+  fxCtx.beginPath();
+  fxCtx.moveTo(x - w/2, y);
+  fxCtx.lineTo(x - w/2 + 4, y - h/2);
+  fxCtx.lineTo(x + w/2 - 6, y - h/2);
+  fxCtx.lineTo(x + w/2, y);
+  fxCtx.lineTo(x + w/2 - 6, y + h/2);
+  fxCtx.lineTo(x - w/2 + 4, y + h/2);
+  fxCtx.closePath();
+  fxCtx.fill();
+  fxCtx.stroke();
+}
+
+function drawCarrier(c) {
+  const x = px(c.x), y = py(c.y);
+  const w = c.w, h = c.h;
+  // hull
+  fxCtx.fillStyle = '#1a3a4a';
+  fxCtx.strokeStyle = c.hp > 30 ? '#7fdbff' : '#ff8866';
+  fxCtx.lineWidth = 2;
+  fxCtx.beginPath();
+  fxCtx.moveTo(x - w/2, y);
+  fxCtx.lineTo(x - w/2 + 6, y - h/2);
+  fxCtx.lineTo(x + w/2 - 8, y - h/2);
+  fxCtx.lineTo(x + w/2, y);
+  fxCtx.lineTo(x + w/2 - 8, y + h/2);
+  fxCtx.lineTo(x - w/2 + 6, y + h/2);
+  fxCtx.closePath();
+  fxCtx.fill(); fxCtx.stroke();
+  // flight deck stripe
+  fxCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  fxCtx.setLineDash([4, 3]);
+  fxCtx.beginPath(); fxCtx.moveTo(x - w/2 + 4, y); fxCtx.lineTo(x + w/2 - 4, y); fxCtx.stroke();
+  fxCtx.setLineDash([]);
+  // island (command tower)
+  fxCtx.fillStyle = '#2a4a5a';
+  fxCtx.fillRect(x + 8, y - h/2 - 3, 10, 4);
+  // aircraft
+  fxCtx.fillStyle = '#ccddee';
+  for (let i = 0; i < 3; i++) {
+    fxCtx.fillRect(x - 20 + i * 12, y - 3, 5, 2);
+  }
+  // label
+  fxCtx.fillStyle = c.hp > 30 ? 'rgba(127, 219, 255, 0.8)' : 'rgba(255, 150, 150, 0.9)';
+  fxCtx.font = 'bold 10px "Courier New", monospace';
+  fxCtx.fillText('USS NIMITZ', x - 28, y + h/2 + 14);
+  // selection ring if dragging
+  if (c.dragging) {
+    fxCtx.strokeStyle = 'rgba(255, 220, 100, 0.8)';
+    fxCtx.lineWidth = 1.5;
+    fxCtx.setLineDash([5, 3]);
+    fxCtx.beginPath(); fxCtx.arc(x, y, w/2 + 8, 0, Math.PI * 2); fxCtx.stroke();
+    fxCtx.setLineDash([]);
+  }
+  // HP bar above
+  if (c.hp < 100) {
+    fxCtx.fillStyle = 'rgba(0,0,0,0.5)';
+    fxCtx.fillRect(x - 22, y - h/2 - 10, 44, 3);
+    fxCtx.fillStyle = c.hp > 30 ? '#00ff88' : '#ff4455';
+    fxCtx.fillRect(x - 22, y - h/2 - 10, 44 * (c.hp / 100), 3);
+  }
+}
+
+function drawDestroyer(d, name) {
+  if (d.hp <= 0) return;
+  const x = px(d.x), y = py(d.y);
+  fxCtx.fillStyle = '#2a3a48';
+  fxCtx.strokeStyle = d.hp > 20 ? '#7fdbff' : '#ff9988';
+  fxCtx.lineWidth = 1.5;
+  fxCtx.beginPath();
+  fxCtx.moveTo(x - d.w/2, y);
+  fxCtx.lineTo(x - d.w/2 + 3, y - d.h/2);
+  fxCtx.lineTo(x + d.w/2 - 5, y - d.h/2);
+  fxCtx.lineTo(x + d.w/2, y);
+  fxCtx.lineTo(x + d.w/2 - 5, y + d.h/2);
+  fxCtx.lineTo(x - d.w/2 + 3, y + d.h/2);
+  fxCtx.closePath();
+  fxCtx.fill(); fxCtx.stroke();
+  // small tower
+  fxCtx.fillStyle = '#3a4a58';
+  fxCtx.fillRect(x - 2, y - d.h/2 - 2, 4, 3);
+  // label
+  fxCtx.fillStyle = 'rgba(127, 219, 255, 0.6)';
+  fxCtx.font = '9px "Courier New", monospace';
+  fxCtx.fillText(name, x - 12, y + d.h/2 + 11);
+  // dragging ring
+  if (d.dragging) {
+    fxCtx.strokeStyle = 'rgba(255, 220, 100, 0.8)';
+    fxCtx.lineWidth = 1.5;
+    fxCtx.setLineDash([5, 3]);
+    fxCtx.beginPath(); fxCtx.arc(x, y, d.w/2 + 6, 0, Math.PI * 2); fxCtx.stroke();
+    fxCtx.setLineDash([]);
+  }
+}
+
+// ---------- EXPLOSION / PARTICLE HELPERS ----------
+function explode(x, y, radius, big) {
+  explosions.push({ x, y, radius, life: 0.6, maxLife: 0.6 });
+  const count = big ? 30 : 14;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * (big ? 180 : 90);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      life: 0.8 + Math.random() * 0.6,
+      maxLife: 0.8 + Math.random() * 0.6,
+      r: 255, g: 150 + Math.random() * 80, b: 60,
+      a: 1, size: 2 + Math.random() * (big ? 4 : 2),
+    });
+  }
+  // smoke
+  for (let i = 0; i < (big ? 18 : 8); i++) {
+    const a = Math.random() * Math.PI * 2;
+    const speed = 15 + Math.random() * 30;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed - 20,
+      life: 1.5, maxLife: 1.5,
+      r: 100, g: 100, b: 100, a: 0.6,
+      size: 5 + Math.random() * 8, smoke: true,
+    });
+  }
+  if (big) { sfx.bigBoom(); screenShake(15); game.flash = 0.4; }
+  else { sfx.explosion(); screenShake(5); }
+}
+
+function screenShake(amt) { game.screenShake = Math.max(game.screenShake, amt); }
+
+function floatText(x, y, text, color) {
+  textFx.push({ x, y, text, color, alpha: 1, vy: -30 });
+}
+
+// ---------- UPDATE LOGIC ----------
+function update(dt) {
+  if (game.paused || !game.running) return;
+  game.time += dt;
+
+  // Spawn tankers periodically
+  game.lastTanker += dt;
+  if (game.lastTanker > 8) {
+    spawnTanker();
+    game.lastTanker = 0;
+  }
+
+  // Wave spawning
+  const waveSpawnRate = Math.max(1.2, 3.5 - game.wave * 0.4);
+  const waveMax = 8 + game.wave * 4;
+  game.lastSpawn += dt;
+  if (game.lastSpawn > waveSpawnRate && game.waveSpawnCount < waveMax) {
+    const aliveSites = launchSites.filter(s => s.alive);
+    if (aliveSites.length) {
+      if (Math.random() < 0.8) spawnMissile();
+      else spawnBoat();
+      game.waveSpawnCount++;
+    }
+    game.lastSpawn = 0;
+  }
+
+  // Check wave completion: all spawned AND cleared
+  if (game.waveSpawnCount >= waveMax && missiles.length === 0 && enemyBoats.length === 0) {
+    advanceWave();
+  }
+
+  // Win: all sites destroyed
+  if (launchSites.every(s => !s.alive)) {
+    victory();
+    return;
+  }
+
+  // Update tankers — follow the curved shipping lane
+  for (let i = tankers.length - 1; i >= 0; i--) {
+    const t = tankers[i];
+    t.x += t.speed * dt;
+    // track toward lane Y smoothly (so ship turns, rather than teleports)
+    const targetY = laneY(t.x);
+    t.y += (targetY - t.y) * Math.min(1, dt * 2);
+    if (t.x > 1.1) tankers.splice(i, 1);
+  }
+
+  // Update missiles
+  for (let i = missiles.length - 1; i >= 0; i--) {
+    const m = missiles[i];
+    m.t += dt;
+    const progress = Math.min(1, m.t / m.duration);
+    // Arc path — gentle arc between source and target
+    const sx = m.sx, sy = m.sy;
+    const tx = m.targetRef && m.targetRef.x !== undefined ? m.targetRef.x : m.tx;
+    const ty = m.targetRef && m.targetRef.y !== undefined ? m.targetRef.y : m.ty;
+    const midX = (sx + tx) / 2;
+    const midY = Math.min(sy, ty) - 0.08;
+    const u = progress;
+    m.x = (1-u)*(1-u)*sx + 2*(1-u)*u*midX + u*u*tx;
+    m.y = (1-u)*(1-u)*sy + 2*(1-u)*u*midY + u*u*ty;
+
+    if (progress >= 1) {
+      // hit target
+      handleMissileHit(m);
+      missiles.splice(i, 1);
+    }
+  }
+
+  // Update interceptors
+  for (let i = interceptors.length - 1; i >= 0; i--) {
+    const it = interceptors[i];
+    const dx = it.tx - it.x, dy = it.ty - it.y;
+    const d = Math.hypot(dx, dy);
+    const step = it.speed * dt;
+    if (d < step || d < 0.01) {
+      // attempt hit on target missile
+      if (it.target && missiles.includes(it.target)) {
+        const m = it.target;
+        const mx = px(m.x), my = px(m.x); // placeholder
+        explode(px(m.x), py(m.y), 40, false);
+        missiles.splice(missiles.indexOf(m), 1);
+        game.score += 50;
+        floatText(px(m.x), py(m.y), '+50', '127, 255, 200');
+        sfx.intercept();
+      } else {
+        // missed — small explosion at location
+        explode(px(it.x), py(it.y), 20, false);
+      }
+      interceptors.splice(i, 1);
+      continue;
+    }
+    it.x += (dx / d) * step;
+    it.y += (dy / d) * step;
+    // auto-track if target moved
+    if (it.target) { it.tx = it.target.x; it.ty = it.target.y; }
+  }
+
+  // Update tomahawks (slower arcing)
+  for (let i = tomahawks.length - 1; i >= 0; i--) {
+    const t = tomahawks[i];
+    t.progress += dt / t.duration;
+    if (t.progress >= 1) {
+      // hit target site
+      const hx = px(t.tx), hy = py(t.ty);
+      explode(hx, hy, 70, true);
+      // destroy site if within range
+      for (const s of launchSites) {
+        if (s.alive && Math.hypot(s.x - t.tx, s.y - t.ty) < 0.03) {
+          s.alive = false;
+          game.score += 500;
+          floatText(px(s.x), py(s.y), 'SITE DESTROYED +500', '255, 200, 100');
+          updateHud();
+        }
+      }
+      tomahawks.splice(i, 1);
+      continue;
+    }
+    const u = t.progress;
+    const midX = (t.sx + t.tx) / 2;
+    const midY = Math.min(t.sy, t.ty) - 0.20;
+    t.x = (1-u)*(1-u)*t.sx + 2*(1-u)*u*midX + u*u*t.tx;
+    t.y = (1-u)*(1-u)*t.sy + 2*(1-u)*u*midY + u*u*t.ty;
+  }
+
+  // Destroyers auto-engage enemy boats
+  for (const d of [fleet.destroyer1, fleet.destroyer2, fleet.destroyer3]) {
+    if (d.hp <= 0) continue;
+    d.fireCooldown -= dt;
+    if (d.fireCooldown <= 0) {
+      // find closest boat
+      let best = null, bestDist = Infinity;
+      for (const b of enemyBoats) {
+        const dd = Math.hypot(b.x - d.x, b.y - d.y);
+        if (dd < bestDist && dd < 0.35) { best = b; bestDist = dd; }
+      }
+      if (best) {
+        destroyerShots.push({
+          x: d.x, y: d.y, sx: d.x, sy: d.y,
+          tx: best.x, ty: best.y, target: best,
+          life: 0.3, speed: 2.0,
+        });
+        d.fireCooldown = 0.6;
+      }
+    }
+  }
+
+  // Update destroyer shots
+  for (let i = destroyerShots.length - 1; i >= 0; i--) {
+    const s = destroyerShots[i];
+    s.life -= dt;
+    // move along line toward target quickly
+    const dx = s.tx - s.x, dy = s.ty - s.y;
+    const d = Math.hypot(dx, dy);
+    const step = s.speed * dt;
+    if (d < step || s.life <= 0) {
+      // hit check on any boat near
+      for (let j = enemyBoats.length - 1; j >= 0; j--) {
+        const b = enemyBoats[j];
+        if (Math.hypot(b.x - s.tx, b.y - s.ty) < 0.03) {
+          b.hp -= 1;
+          if (b.hp <= 0) {
+            explode(px(b.x), py(b.y), 30, false);
+            enemyBoats.splice(j, 1);
+            game.score += 75;
+            floatText(px(b.x), py(b.y), '+75', '127, 255, 200');
+          } else {
+            // small spark
+            explode(px(b.x), py(b.y), 10, false);
+          }
+          break;
+        }
+      }
+      destroyerShots.splice(i, 1);
+      continue;
+    }
+    s.x += (dx / d) * step;
+    s.y += (dy / d) * step;
+  }
+
+  // Update enemy boats
+  for (let i = enemyBoats.length - 1; i >= 0; i--) {
+    const b = enemyBoats[i];
+    const dx = b.tx - b.x, dy = b.ty - b.y;
+    const d = Math.hypot(dx, dy);
+    const step = b.speed * dt;
+    if (d < step) {
+      // boat reaches destination — damages closest ship slightly
+      const ships = [fleet.carrier, fleet.destroyer1, fleet.destroyer2, fleet.destroyer3].filter(s => s.hp > 0);
+      let closest = ships[0], cd = Infinity;
+      for (const s of ships) {
+        const dd = Math.hypot(s.x - b.x, s.y - b.y);
+        if (dd < cd) { cd = dd; closest = s; }
+      }
+      if (closest && cd < 0.15) {
+        damageShip(closest, 15);
+        explode(px(b.x), py(b.y), 30, false);
+      }
+      enemyBoats.splice(i, 1);
+      continue;
+    }
+    b.x += (dx / d) * step;
+    b.y += (dy / d) * step;
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.96; p.vy *= 0.96;
+    if (p.smoke) { p.vy -= 10 * dt; p.size += 8 * dt; }
+    p.life -= dt;
+    p.a = Math.max(0, p.life / p.maxLife);
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update explosions
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].life -= dt;
+    if (explosions[i].life <= 0) explosions.splice(i, 1);
+  }
+
+  // text fx
+  for (let i = textFx.length - 1; i >= 0; i--) {
+    const t = textFx[i];
+    t.y += t.vy * dt;
+    t.alpha -= dt * 1.5;
+    if (t.alpha <= 0) textFx.splice(i, 1);
+  }
+}
+
+function handleMissileHit(m) {
+  const tgt = m.targetRef;
+  if (!tgt) {
+    explode(px(m.x), py(m.y), 30, false);
+    return;
+  }
+  // tanker?
+  if (tankers.includes(tgt)) {
+    const idx = tankers.indexOf(tgt);
+    if (idx >= 0) {
+      explode(px(tgt.x), py(tgt.y), 60, true);
+      tankers.splice(idx, 1);
+      game.tankersLost++;
+      floatText(px(tgt.x), py(tgt.y), 'TANKER LOST', '255, 100, 100');
+      updateHud();
+      if (game.tankersLost >= game.maxTankerLoss) {
+        defeat('TANKERS LOST — MISSION FAILURE');
+      }
+    }
+    return;
+  }
+  // fleet ship
+  if (tgt === fleet.carrier || [fleet.destroyer1, fleet.destroyer2, fleet.destroyer3].includes(tgt)) {
+    damageShip(tgt, tgt === fleet.carrier ? 20 : 30);
+    explode(px(tgt.x), py(tgt.y), 50, tgt === fleet.carrier);
+  }
+}
+
+function damageShip(ship, amount) {
+  ship.hp -= amount;
+  sfx.hit();
+  screenShake(4);
+  game.flash = Math.max(game.flash, 0.25);
+  if (ship.hp <= 0) {
+    ship.hp = 0;
+    explode(px(ship.x), py(ship.y), 70, true);
+    if (ship === fleet.carrier) {
+      defeat('USS NIMITZ LOST — MISSION FAILURE');
+    } else {
+      floatText(px(ship.x), py(ship.y), 'DESTROYER LOST', '255, 100, 100');
+    }
+  }
+  updateHud();
+}
+
+function advanceWave() {
+  if (game.wave >= game.maxWaves) {
+    victory();
+    return;
+  }
+  game.wave++;
+  game.waveSpawnCount = 0;
+  game.lastSpawn = -2;
+  // bonus: one tomahawk per wave cleared
+  game.tomahawks = Math.min(10, game.tomahawks + 2);
+  sfx.waveComplete();
+  showWaveBanner();
+  updateHud();
+}
+
+// ---------- INPUT ----------
+const $ = (id) => document.getElementById(id);
+
+let pointerDown = false;
+fxCanvas.addEventListener('mousedown', onDown);
+fxCanvas.addEventListener('mousemove', onMove);
+fxCanvas.addEventListener('mouseup', onUp);
+fxCanvas.addEventListener('mouseleave', onUp);
+fxCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.touches[0]; onDown({ clientX: t.clientX, clientY: t.clientY }); }, {passive:false});
+fxCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); const t = e.touches[0]; onMove({ clientX: t.clientX, clientY: t.clientY }); }, {passive:false});
+fxCanvas.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); }, {passive:false});
+
+function canvasCoords(ev) {
+  const r = fxCanvas.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) / W, y: (ev.clientY - r.top) / H, pxX: ev.clientX - r.left, pxY: ev.clientY - r.top };
+}
+
+function onDown(ev) {
+  if (!game.running || game.paused) return;
+  pointerDown = true;
+  const c = canvasCoords(ev);
+  if (game.mode === 'move') {
+    // pick up nearest ship
+    const ships = [fleet.carrier, fleet.destroyer1, fleet.destroyer2, fleet.destroyer3];
+    let best = null, bestDist = Infinity;
+    for (const s of ships) {
+      if (s.hp <= 0) continue;
+      const d = Math.hypot(s.x - c.x, s.y - c.y);
+      if (d < bestDist && d < 0.05) { bestDist = d; best = s; }
+    }
+    if (best) { best.dragging = true; game.dragTarget = best; }
+  } else if (game.mode === 'tomahawk') {
+    if (game.tomahawks <= 0) { sfx.hit(); return; }
+    // target must be on or near enemy coast (within 0.03 of a launch site)
+    let hit = null, hitDist = Infinity;
+    for (const s of launchSites) {
+      if (!s.alive) continue;
+      const d = Math.hypot(s.x - c.x, s.y - c.y);
+      if (d < hitDist && d < 0.05) { hit = s; hitDist = d; }
+    }
+    if (hit) {
+      tomahawks.push({
+        sx: fleet.carrier.x, sy: fleet.carrier.y,
+        x: fleet.carrier.x, y: fleet.carrier.y,
+        tx: hit.x, ty: hit.y, progress: 0, duration: 2.2,
+      });
+      game.tomahawks--;
+      sfx.tomahawk();
+      floatText(px(fleet.carrier.x), py(fleet.carrier.y) - 20, 'TOMAHAWK AWAY', '255, 200, 100');
+      updateHud();
+      // auto-return to intercept
+      setMode('intercept');
+    } else {
+      floatText(c.pxX, c.pxY, 'OUT OF RANGE', '255, 120, 120');
+      sfx.hit();
+    }
+  } else {
+    // intercept mode — fire at nearest missile within radius
+    let best = null, bestDist = Infinity;
+    for (const m of missiles) {
+      const d = Math.hypot(m.x - c.x, m.y - c.y);
+      if (d < bestDist && d < 0.04) { bestDist = d; best = m; }
+    }
+    if (best) {
+      // Launch from nearest destroyer/carrier
+      const ships = [fleet.carrier, fleet.destroyer1, fleet.destroyer2, fleet.destroyer3].filter(s => s.hp > 0);
+      let launcher = ships[0], ld = Infinity;
+      for (const s of ships) { const d = Math.hypot(s.x - best.x, s.y - best.y); if (d < ld) { ld = d; launcher = s; } }
+      interceptors.push({
+        sx: launcher.x, sy: launcher.y,
+        x: launcher.x, y: launcher.y,
+        tx: best.x, ty: best.y, target: best,
+        speed: 1.4,
+      });
+      sfx.ping();
+    }
+  }
+}
+
+function onMove(ev) {
+  if (!game.running) return;
+  const c = canvasCoords(ev);
+  if (game.dragTarget && pointerDown) {
+    // Try the target position; if it's on land, find nearest water point by small search
+    let newX = Math.max(0.02, Math.min(0.98, c.x));
+    let newY = Math.max(0.02, Math.min(0.98, c.y));
+    const onLand = (x, y) => pointInPoly([x, y], MAP.iran) || pointInPoly([x, y], MAP.uae);
+    if (onLand(newX, newY)) {
+      // keep ship at last valid position (don't move onto land)
+      // search outward for nearest water
+      let found = false;
+      for (let r = 0.01; r < 0.3 && !found; r += 0.01) {
+        for (let a = 0; a < Math.PI * 2 && !found; a += Math.PI / 12) {
+          const tx = newX + Math.cos(a) * r;
+          const ty = newY + Math.sin(a) * r;
+          if (!onLand(tx, ty) && ty > 0.35 && ty < 0.92) {
+            newX = tx; newY = ty; found = true;
+          }
+        }
+      }
+      if (!found) return; // give up, don't move
+    }
+    game.dragTarget.x = newX;
+    game.dragTarget.y = newY;
+  }
+}
+
+function onUp() {
+  pointerDown = false;
+  if (game.dragTarget) { game.dragTarget.dragging = false; game.dragTarget = null; }
+}
+
+// Buttons
+$('btn-intercept').addEventListener('click', () => setMode('intercept'));
+$('btn-tomahawk').addEventListener('click', () => setMode('tomahawk'));
+$('btn-move').addEventListener('click', () => setMode('move'));
+
+function setMode(m) {
+  game.mode = m;
+  document.querySelectorAll('.weapon-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+  fxCanvas.style.cursor = m === 'tomahawk' ? 'crosshair' : (m === 'move' ? 'grab' : 'crosshair');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1') setMode('intercept');
+  else if (e.key === '2') setMode('tomahawk');
+  else if (e.key === '3') setMode('move');
+  else if (e.key === ' ') { e.preventDefault(); game.paused = !game.paused; }
+});
+
+// ---------- HUD ----------
+function updateHud() {
+  $('score').textContent = game.score.toLocaleString();
+  $('wave-num').textContent = game.wave + '/' + game.maxWaves;
+  $('tankers-lost').textContent = game.tankersLost + '/' + game.maxTankerLoss;
+  $('sites-left').textContent = launchSites.filter(s => s.alive).length;
+  $('tom-charges').textContent = game.tomahawks;
+  const hp = fleet.carrier.hp;
+  const hpBar = $('carrier-hp');
+  hpBar.style.width = hp + '%';
+  hpBar.className = 'bar-fill' + (hp < 30 ? ' danger' : hp < 60 ? ' warn' : '');
+  $('btn-tomahawk').disabled = game.tomahawks <= 0;
+}
+
+function showWaveBanner() {
+  const b = $('wave-banner');
+  b.textContent = `◆ WAVE ${game.wave} ◆`;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 2000);
+}
+
+function showMessage(text, color, duration=2500) {
+  const m = $('message');
+  m.textContent = text;
+  m.style.color = color;
+  m.classList.add('show');
+  setTimeout(() => m.classList.remove('show'), duration);
+}
+
+// ---------- GAME FLOW ----------
+function startGame() {
+  game.running = true;
+  game.paused = false;
+  game.score = 0;
+  game.wave = 1;
+  game.tankersLost = 0;
+  game.tomahawks = 3;
+  game.waveSpawnCount = 0;
+  game.lastSpawn = 0;
+  game.lastTanker = 0;
+  fleet.carrier.hp = 100;
+  fleet.destroyer1.hp = 60;
+  fleet.destroyer2.hp = 60;
+  fleet.destroyer3.hp = 60;
+  launchSites = MAP.launchSites.map(s => ({ ...s, alive: true, pulse: 0 }));
+  missiles.length = 0;
+  interceptors.length = 0;
+  tomahawks.length = 0;
+  destroyerShots.length = 0;
+  enemyBoats.length = 0;
+  tankers.length = 0;
+  particles.length = 0;
+  explosions.length = 0;
+  textFx.length = 0;
+  // spawn initial tankers
+  for (let i = 0; i < 2; i++) {
+    const startX = -0.05 - i * 0.3;
+    tankers.push({ x: startX, y: laneY(startX), speed: 0.09, w: 70, h: 16 });
+  }
+  $('overlay').style.display = 'none';
+  setMode('intercept');
+  updateHud();
+  showWaveBanner();
+  ac(); // unlock audio context
+  sfx.alert();
+}
+
+function defeat(msg) {
+  game.running = false;
+  sfx.gameOver();
+  showEndOverlay('MISSION FAILED', msg, '#ff4455');
+}
+
+function victory() {
+  game.running = false;
+  sfx.victory();
+  showEndOverlay('MISSION COMPLETE', `All launch sites neutralized.<br>Score: ${game.score.toLocaleString()}`, '#00ff88');
+}
+
+function showEndOverlay(title, msg, color) {
+  const ov = $('overlay');
+  ov.innerHTML = `
+    <h1 style="color:${color}; text-shadow: 0 0 30px ${color};">${title}</h1>
+    <div class="subtitle" style="color:${color};">${msg}</div>
+    <div style="margin: 30px 0; font-size: 13px; color: #a8d8ff;">
+      <div>Final Score: <strong style="color:#ffcc00">${game.score.toLocaleString()}</strong></div>
+      <div>Waves Survived: <strong style="color:#ffcc00">${game.wave}/${game.maxWaves}</strong></div>
+      <div>Sites Destroyed: <strong style="color:#ffcc00">${6 - launchSites.filter(s=>s.alive).length}/6</strong></div>
+    </div>
+    <button onclick="location.reload()">▶ NEW OPERATION</button>
+    <div class="disclaimer">This is a fictional arcade game. Not a depiction of real conflict.</div>
+  `;
+  ov.style.display = 'flex';
+}
+
+$('start-btn').addEventListener('click', startGame);
+
+// ---------- MAIN LOOP ----------
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
+  drawSeaLayer();
+  drawFX();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// Initial render before start
+setMode('intercept');
+</script>
+</body>
+</html>
